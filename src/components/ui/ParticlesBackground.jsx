@@ -17,40 +17,50 @@ const ParticlesBackground = () => {
         fpsLimit: 60,
         interactivity: {
           events: {
-            onHover: { enable: true, mode: 'grab' },
+            onHover: { enable: true, mode: ['bubble', 'grab'] },
             onClick: { enable: true, mode: 'push' },
           },
           modes: {
-            grab: { distance: 140, links: { opacity: 0.4 } },
-            push: { quantity: 2 },
+            bubble: { distance: 250, size: 8, duration: 0.5, opacity: 0.9, color: '#06b6d4' },
+            grab: { distance: 200, links: { opacity: 0.5 } },
+            push: { quantity: 4 },
           },
         },
         particles: {
-          color: { value: ['#6366f1', '#8b5cf6', '#06b6d4', '#a78bfa', '#ffffff'] },
+          number: { value: 240, density: { enable: true, area: 1000 } },
+          color: { value: ['#6366f1', '#8b5cf6', '#06b6d4', '#ec4899', '#f8fafc', '#ffd700'] },
+          shape: { type: 'circle' },
+          opacity: {
+            value: { min: 0.1, max: 0.9 },
+            animation: { enable: true, speed: 1, minimumValue: 0.1, sync: false },
+          },
+          size: {
+            value: { min: 0.5, max: 4 },
+            animation: { enable: true, speed: 2, minimumValue: 0.1, sync: false },
+          },
           links: {
-            color: '#6366f1',
-            distance: 130,
             enable: true,
-            opacity: 0.1,
+            distance: 120,
+            color: '#8b5cf6',
+            opacity: 0.2,
             width: 1,
+            triangles: { enable: true, color: '#6366f1', opacity: 0.03 },
           },
           move: {
             enable: true,
-            speed: 0.6,
+            speed: { min: 0.1, max: 0.5 },
             direction: 'none',
             random: true,
             straight: false,
-            outModes: { default: 'bounce' },
+            outModes: { default: 'out' },
           },
-          number: { value: 90, density: { enable: true, area: 900 } },
-          opacity: {
-            value: { min: 0.2, max: 0.7 },
-            animation: { enable: true, speed: 0.8, minimumValue: 0.1 },
+          shadow: {
+            enable: true,
+            color: '#6366f1',
+            blur: 8,
           },
-          shape: { type: ['circle', 'star'] },
-          size: {
-            value: { min: 1, max: 3 },
-            animation: { enable: true, speed: 1.5, minimumValue: 0.5 },
+          twinkle: {
+            particles: { enable: true, color: '#ffffff', frequency: 0.05, opacity: 1 },
           },
         },
         detectRetina: true,

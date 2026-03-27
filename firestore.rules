@@ -20,22 +20,25 @@ service cloud.firestore {
 
     // ── Users ──────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      allow read, write: if isAdmin();
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // ── Resumes ────────────────────────────────────────────────────────────
     match /resumes/{resumeId} {
-      allow read, write: if request.auth != null && resource == null || resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, write, delete: if isAdmin();
     }
 
     // ── Payments ──────────────────────────────────────────────────────────
     match /payments/{paymentId} {
-      allow read, write: if request.auth != null && resource == null || resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, write: if isAdmin();
+    }
+
+    // ── Jobs ──────────────────────────────────────────────────────────────
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow write, delete: if isAdmin();
     }
   }
 }

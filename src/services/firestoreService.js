@@ -102,3 +102,26 @@ export const getAllPayments = async () => {
   const snap = await getDocs(collection(db, 'payments'));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
+
+// ── JOBS ─────────────────────────────────────────────────────────────────────
+export const getAllJobs = async () => {
+  const q = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+export const addJob = async (jobData) => {
+  const ref = await addDoc(collection(db, 'jobs'), {
+    ...jobData,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+};
+
+export const updateJob = async (jobId, data) => {
+  await updateDoc(doc(db, 'jobs', jobId), { ...data, updatedAt: serverTimestamp() });
+};
+
+export const deleteJob = async (jobId) => {
+  await deleteDoc(doc(db, 'jobs', jobId));
+};

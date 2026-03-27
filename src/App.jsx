@@ -2,8 +2,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { ResumeProvider } from './context/ResumeContext';
 import { ProtectedRoute, AdminRoute } from './components/ui/ProtectedRoute';
-import ParticlesBackground from './components/ui/ParticlesBackground';
+import LiquidGlassBackground from './components/ui/LiquidGlassBackground';
 import Navbar from './components/layout/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -13,6 +14,7 @@ import ResumeForm from './pages/ResumeForm';
 import ResumePreview from './pages/ResumePreview';
 import Payment from './pages/Payment';
 import Jobs from './pages/Jobs';
+import ResumeEditor from './pages/ResumeEditor';
 import AITools from './pages/AITools';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
@@ -20,9 +22,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* Galaxy background */}
-        <div className="galaxy-bg" />
-        <ParticlesBackground />
+        <ResumeProvider>
+        {/* Blue Liquid Glass Background */}
+        <LiquidGlassBackground />
 
         {/* Global toast notifications */}
         <Toaster
@@ -59,6 +61,8 @@ function App() {
             <Route path="/resume/preview/:id" element={<ResumePreview />} />
             <Route path="/payment" element={<Payment />} />
           </Route>
+          <Route path="/resume/edit/:id" element={<ResumeEditor />} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
 
           {/* Admin-only */}
           <Route element={<AdminRoute />}>
@@ -68,6 +72,7 @@ function App() {
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ResumeProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -4,7 +4,7 @@
 //            Charts, Export/Import, Settings, Galaxy UI
 // ═══════════════════════════════════════════════════════════════
 import { useState, useEffect } from 'react';
-import { getAllUsers, getAllResumes, getAllPayments, updateUserProfile, deleteResume } from '../../services/firestoreService';
+import { getAllUsers, getAllResumes, getAllPayments, getAllJobs, addJob, updateJob, deleteJob, updateUserProfile, deleteResume } from '../../services/firestoreService';
 import { exportToExcel, exportToCSV, exportToPDF, importFromExcel } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
@@ -18,7 +18,8 @@ import {
   FiUsers, FiFileText, FiDollarSign, FiSettings, FiDownload,
   FiUpload, FiRefreshCw, FiEdit, FiTrash2, FiCheck, FiX,
   FiHome, FiPieChart, FiCreditCard, FiShield, FiSearch,
-  FiTrendingUp, FiStar, FiAlertCircle,
+  FiTrendingUp, FiStar, FiAlertCircle, FiBriefcase, FiMapPin,
+  FiExternalLink, FiPlus
 } from 'react-icons/fi';
 
 // ── Chart colours ──────────────────────────────────────────────
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'users',     label: 'Users',     icon: <FiUsers /> },
   { id: 'resumes',   label: 'Resumes',   icon: <FiFileText /> },
   { id: 'payments',  label: 'Payments',  icon: <FiCreditCard /> },
+  { id: 'jobs',      label: 'Jobs',      icon: <FiBriefcase /> },
   { id: 'analytics', label: 'Analytics', icon: <FiPieChart /> },
   { id: 'settings',  label: 'Settings',  icon: <FiSettings /> },
 ];
@@ -42,15 +44,19 @@ export default function AdminDashboard() {
   const [users, setUsers]         = useState([]);
   const [resumes, setResumes]     = useState([]);
   const [payments, setPayments]   = useState([]);
+  const [jobs, setJobs]           = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [editingUser, setEditingUser] = useState(null);
+  const [editingJob, setEditingJob]   = useState(null);
+  const [showJobModal, setShowJobModal] = useState(false);
+  const [jobForm, setJobForm] = useState({ title: '', company: '', location: '', salary: '', type: 'Full-time', link: '', description: '', tags: '' });
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [u, r, p] = await Promise.all([getAllUsers(), getAllResumes(), getAllPayments()]);
-      setUsers(u); setResumes(r); setPayments(p);
+      const [u, r, p, j] = await Promise.all([getAllUsers(), getAllResumes(), getAllPayments(), getAllJobs()]);
+      setUsers(u); setResumes(r); setPayments(p); setJobs(j);
     } catch (e) { toast.error('Load failed: ' + e.message); }
     finally { setLoading(false); }
   };
@@ -123,9 +129,8 @@ export default function AdminDashboard() {
       toast.success('Resume deleted');
     } catch { toast.error('Failed to delete'); }
   };
-
   const handleExport = (dataset, format) => {
-    const map = { users, resumes, payments };
+    const map = { users, resumes, payments, jobs };
     const clean = (map[dataset] || []).map(flattenObj);
     if (format === 'excel') exportToExcel(clean, dataset);
     else if (format === 'csv') exportToCSV(clean, dataset);
@@ -144,16 +149,51 @@ export default function AdminDashboard() {
     e.target.value = '';
   };
 
+  const handleSaveJob = async (e) => {
+    e.preventDefault();
+    const data = { ...jobForm, tags: jobForm.tags.split(',').map(t => t.trim()).filter(t => t) };
+    try {
+      if (editingJob) {
+        await updateJob(editingJob.id, data);
+        toast.success('Job updated successfully');
+      } else {
+        await addJob(data);
+        toast.success('Job added successfully');
+      }
+      setShowJobModal(false);
+      setEditingJob(null);
+      setJobForm({ title: '', company: '', location: '', salary: '', type: 'Full-time', link: '', description: '', tags: '' });
+      loadAll();
+    } catch (err) {
+      toast.error('Failed to save job');
+    }
+  };
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Delete this job post?')) return;
+    try {
+      await deleteJob(id);
+      toast.success('Job deleted');
+      loadAll();
+    } catch { toast.error('Failed to delete job'); }
+  };
+
+  const openEditJob = (job) => {
+    setEditingJob(job);
+    setJobForm({ ...job, tags: (job.tags || []).join(', ') });
+    setShowJobModal(true);
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* ── SIDEBAR ──────────────────────────────────────────── */}
       <aside style={{
         width: 220, flexShrink: 0,
-        background: 'rgba(255,255,255,0.04)',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(13, 19, 51, 0.4)',
+        borderRight: '1px solid var(--glass-border)',
+        backdropFilter: 'blur(40px)',
         padding: '24px 0',
-        position: 'sticky', top: 64, height: 'calc(100vh - 64px)',
+        position: 'sticky', top: 76, height: 'calc(100vh - 76px)',
         overflowY: 'auto',
       }}>
         {/* Logo row */}
@@ -515,6 +555,122 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ── JOBS MANAGEMENT ─────────────────────────────── */}
+        {activeTab === 'jobs' && (
+          <div className="animate-in">
+            <div className="glass-card" style={{ padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <span style={{ fontWeight: 700 }}>💼 Jobs Management</span>
+                <span className="badge badge-free" style={{ marginLeft: 8 }}>{jobs.length} posts</span>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => { setEditingJob(null); setJobForm({ title: '', company: '', location: '', salary: '', type: 'Full-time', link: '', description: '', tags: '' }); setShowJobModal(true); }}>
+                + Post New Job
+              </button>
+            </div>
+
+            <div className="glass-card overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr><th>#</th><th>Title</th><th>Company</th><th>Location</th><th>Salary</th><th>Type</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {loading ? <tr><td colSpan={7}><LoadingRow /></td></tr>
+                  : jobs.length === 0 ? <tr><td colSpan={7}><EmptyRow msg="No jobs posted yet" /></td></tr>
+                  : jobs.filter(j => j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase())).map((j, i) => (
+                    <tr key={j.id}>
+                      <td className="text-muted text-xs">{i + 1}</td>
+                      <td style={{ fontWeight: 600 }}>{j.title}</td>
+                      <td className="text-sm">{j.company}</td>
+                      <td className="text-muted text-sm">{j.location}</td>
+                      <td className="text-success text-sm">{j.salary}</td>
+                      <td><span className="badge badge-success">{j.type}</span></td>
+                      <td>
+                        <div className="flex gap-8">
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEditJob(j)}><FiEdit /></button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteJob(j.id)}><FiTrash2 /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {showJobModal && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, backdropFilter: 'blur(12px)' }}>
+                <div className="glass-card animate-in-up" style={{ 
+                  width: '100%', maxWidth: 580, maxHeight: '95vh', 
+                  overflowY: 'auto', padding: '24px 28px', position: 'relative',
+                  border: '1px solid var(--glass-border-brighter)',
+                  boxShadow: '0 40px 100px rgba(0,0,0,0.8)'
+                }}>
+                  <button onClick={() => setShowJobModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer', zIndex: 10 }}><FiX /></button>
+                  <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4rem', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {editingJob ? <span style={{ color: 'var(--accent2)' }}>✍️ Edit Job Post</span> : <span style={{ color: 'var(--primary)' }}>🚀 Post New Job</span>}
+                  </h2>
+                  
+                  <form onSubmit={handleSaveJob} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div className="grid-2" style={{ gap: 12 }}>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Job Title</label>
+                        <input className="form-input" value={jobForm.title} onChange={e => setJobForm({...jobForm, title: e.target.value})} required placeholder="e.g. Senior Frontend Engineer" />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Company</label>
+                        <input className="form-input" value={jobForm.company} onChange={e => setJobForm({...jobForm, company: e.target.value})} required placeholder="e.g. Google" />
+                      </div>
+                    </div>
+
+                    <div className="grid-2" style={{ gap: 12 }}>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Location</label>
+                        <input className="form-input" value={jobForm.location} onChange={e => setJobForm({...jobForm, location: e.target.value})} placeholder="e.g. Remote, Mumbai" />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Salary Range</label>
+                        <input className="form-input" value={jobForm.salary} onChange={e => setJobForm({...jobForm, salary: e.target.value})} placeholder="e.g. ₹15L–25L" />
+                      </div>
+                    </div>
+
+                    <div className="grid-2" style={{ gap: 12 }}>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Type</label>
+                        <select className="form-input" value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})}>
+                          <option value="Full-time">Full-time</option>
+                          <option value="Part-time">Part-time</option>
+                          <option value="Contract">Contract</option>
+                          <option value="Internship">Internship</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 12 }}>
+                        <label className="form-label">Apply Link</label>
+                        <input className="form-input" value={jobForm.link} onChange={e => setJobForm({...jobForm, link: e.target.value})} placeholder="https://..." />
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 12 }}>
+                      <label className="form-label">Tags (comma separated)</label>
+                      <input className="form-input" value={jobForm.tags} onChange={e => setJobForm({...jobForm, tags: e.target.value})} placeholder="React, Node.js, AWS" />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 12 }}>
+                      <label className="form-label">Job Description</label>
+                      <textarea className="form-textarea" style={{ minHeight: 80 }} value={jobForm.description} onChange={e => setJobForm({...jobForm, description: e.target.value})} placeholder="Mention key requirements..."></textarea>
+                    </div>
+
+                    <div className="flex gap-12 mt-16">
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', height: 48 }}>
+                        {editingJob ? 'Update Post' : 'Deploy Post'}
+                      </button>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0 24px', height: 48 }} onClick={() => setShowJobModal(false)}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
